@@ -62,7 +62,7 @@ final class Program implements AutoCloseable {
     private void start() {
         System.out.println("Welcome to the shop! Please take a look around.");
         StorePage currentPage = new StorePage(this::showHomePage);
-        do currentPage = currentPage.show(this);
+        do currentPage = currentPage.show();
         while (!currentPage.shouldExit());
         System.out.println("Thank you for using our shop!");
     }
@@ -104,6 +104,7 @@ final class Program implements AutoCloseable {
             .sorted(sorter)
             .toArray(Product[]::new);
 
+        //noinspection HardcodedFileSeparator
         System.out.printf(
             "There are %d products available. Showing %s%d based on your filters.%n",
             products.size(),
@@ -345,7 +346,7 @@ final class Program implements AutoCloseable {
             return handler == null;
         }
 
-        StorePage show(Program program) {
+        StorePage show() {
             return (handler == null) ? new StorePage() : handler.get();
         }
     }
