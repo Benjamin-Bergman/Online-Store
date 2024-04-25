@@ -92,16 +92,17 @@ final class Program implements AutoCloseable {
 
     @SuppressWarnings({"ReassignedVariable", "FeatureEnvy"})
     private StorePage showProducts(ProductSorter sort, Collection<ProductFilter> filter) {
-        System.out.printf(
-            "There are %d products available.%s%n",
-            products.size(),
-            (products.size() > 5) ? " Showing %d.".formatted(products.size()) : "");
         var searched = products
             .stream()
             .filter(product -> filter.stream().allMatch(pred -> pred.test(product)))
             .sorted(sort)
             .limit(5)
             .toArray(Product[]::new);
+
+        System.out.printf(
+            "There are %d products available. Showing %d based on your filters.%n",
+            products.size(),
+            searched.length);
 
         for (int i = 0; i < searched.length; i++) {
             var product = searched[i];
@@ -117,6 +118,7 @@ final class Program implements AutoCloseable {
         return new StorePage(() -> switch (readInt().orElse(0)) {
             case 1 -> showChangeSearchOptions(sort, filter);
             case 2 -> showAddToCart(searched, sort, filter);
+            case 3 -> showHomePage();
             default -> {
                 System.out.println("Sorry, I don't understand.");
                 yield showProducts(sort, filter);
@@ -125,6 +127,10 @@ final class Program implements AutoCloseable {
     }
 
     private StorePage showAddToCart(Product[] searched, ProductSorter sort, Collection<ProductFilter> filter) {
+        if (searched.length == 0) {
+            System.out.println("There's nothing to add to cart!");
+            return new StorePage(() -> showProducts(sort, filter));
+        }
         System.out.printf("Which product would you like to add to cart?%n> ");
         int choice = readInt().orElse(-1);
         if ((choice < 1) || (choice > searched.length)) {
@@ -166,6 +172,7 @@ final class Program implements AutoCloseable {
             case 1 -> showChangeSortingMode(sort, filter);
             case 2 -> showAddFilters(sort, filter);
             case 3 -> showRemoveFilters(sort, filter);
+            case 4 -> showProducts(sort, filter);
             default -> {
                 System.out.println("Sorry, I don't understand.");
                 yield showChangeSearchOptions(sort, filter);
@@ -184,12 +191,14 @@ final class Program implements AutoCloseable {
             2 - Price (Minimum)
             3 - Department
             4 - Name
+            5 - Go Back
             >\s""");
         return switch (readInt().orElse(-1)) {
             case 1 -> new StorePage(() -> showPriceFilter(sort, filter, true));
             case 2 -> new StorePage(() -> showPriceFilter(sort, filter, false));
             case 3 -> new StorePage(() -> showDepartmentFilter(sort, filter));
             case 4 -> new StorePage(() -> showNameFilter(sort, filter));
+            case 5 -> new StorePage(() -> showChangeSearchOptions(sort, filter));
             default -> {
                 System.out.println("Sorry, I don't understand.");
                 yield new StorePage(() -> showAddFilters(sort, filter));
@@ -198,11 +207,29 @@ final class Program implements AutoCloseable {
     }
 
     private StorePage showNameFilter(ProductSorter sort, Collection<ProductFilter> filter) {
-        throw new RuntimeException();
+        System.out.print("""
+            What are you looking for?
+            >\s""");
+        var search = scanner.next();
+        filter.add(new ProductFilter(p -> p.productName().toLowerCase().contains(search.toLowerCase()), "Contains \"%s\"".formatted(search.toLowerCase())));
+        return new StorePage(() -> showChangeSearchOptions(sort, filter));
     }
 
+    @SuppressWarnings("ReassignedVariable")
     private StorePage showDepartmentFilter(ProductSorter sort, Collection<ProductFilter> filter) {
-        throw new RuntimeException();
+        System.out.println("Which department are you looking at?");
+        var deps = products.stream().map(Product::department).toArray(String[]::new);
+        for (int i = 0; i < deps.length; i++)
+            System.out.printf("%d - %s%n", i + 1, deps[i]);
+        System.out.print("> ");
+        int choice = readInt().orElse(-1);
+        if ((choice < 1) || (choice > deps.length)) {
+            System.out.println("Sorry, I don't understand.");
+            return new StorePage(() -> showDepartmentFilter(sort, filter));
+        }
+        var dep = deps[choice - 1];
+        filter.add(new ProductFilter(p -> p.department().equals(dep), "In " + dep));
+        return new StorePage(() -> showChangeSearchOptions(sort, filter));
     }
 
     private StorePage showPriceFilter(ProductSorter sort, Collection<ProductFilter> filter, boolean isMax) {
@@ -221,11 +248,29 @@ final class Program implements AutoCloseable {
             filter.add(new ProductFilter(p -> p.price() < limit, "Price < " + limit));
         else
             filter.add(new ProductFilter(p -> p.price() > limit, "Price > " + limit));
-        return new StorePage(() -> showAddFilters(sort, filter));
+        return new StorePage(() -> showChangeSearchOptions(sort, filter));
     }
 
     private StorePage showChangeSortingMode(ProductSorter sort, Collection<ProductFilter> filter) {
-        throw new RuntimeException();
+        System.out.print("""
+            1 - Reset sort
+            2 - Sort by name
+            3 - Sort by price
+            4 - Sort by department
+            5 - Go back
+            >\s""");
+        int command = readInt().orElse(-1);
+        if (command == 5) return new StorePage(() -> showChangeSearchOptions(sort, filter));
+        return new StorePage(() -> showChangeSortingMode(switch (command) {
+            case 1 -> ProductSorter.noSort();
+            case 2 -> sort.thenComparing(Comparator.comparing(Product::productName), "Name");
+            case 3 -> sort.thenComparing(Comparator.comparing(Product::price), "Price");
+            case 4 -> sort.thenComparing(Comparator.comparing(Product::department), "Department");
+            default -> {
+                System.out.println("Sorry, I don't understand.");
+                yield sort;
+            }
+        }, filter));
     }
 
     private StorePage showCart() {
