@@ -9,7 +9,7 @@ import java.util.Map.*;
 import java.util.function.*;
 import java.util.stream.*;
 
-@SuppressWarnings("ClassWithTooManyMethods")
+@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
 final class Program implements AutoCloseable {
     private static final int MAX_PRODUCTS_PER_PAGE = 5;
     private final Collection<Product> products;
