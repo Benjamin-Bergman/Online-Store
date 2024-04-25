@@ -4,6 +4,7 @@ package com.pluralsight;
 
 import java.io.*;
 import java.util.*;
+import java.util.Map.*;
 import java.util.function.*;
 
 final class Program implements AutoCloseable {
@@ -152,13 +153,17 @@ final class Program implements AutoCloseable {
     }
 
     private void printCartStatus(boolean updated) {
-        int total = shoppingCart.values().stream().map(MutableInt::intValue).reduce(0, Integer::sum);
+        int total = cartCount();
         System.out.printf("There %s%s %d item%s in your cart.%n",
             (total == 1) ? "is" : "are",
             updated ? " now" : "",
             total,
             (total == 1) ? "" : "s"
         );
+    }
+
+    private int cartCount() {
+        return shoppingCart.values().stream().map(MutableInt::intValue).reduce(0, Integer::sum);
     }
 
     private StorePage showChangeSearchOptions() {
@@ -295,7 +300,52 @@ final class Program implements AutoCloseable {
         return new StorePage(this::showChangeSortingMode);
     }
 
+    @SuppressWarnings("ReassignedVariable")
     private StorePage showCart() {
+        System.out.printf("There are %d products in your cart.%n", cartCount());
+        var arr = shoppingCart
+            .entrySet()
+            .stream()
+            .sorted((e1, e2) -> sorter.compare(e1.getKey(), e2.getKey()))
+            .toList();
+
+        for (int i = 0; i < arr.size(); i++)
+            System.out.printf("%d - %d* %s%n", i + 1, arr.get(i).getValue().intValue(), arr.get(i).getKey());
+
+        System.out.println("""
+            What would you like to do?
+            1 - Check out
+            2 - Remove an item
+            3 - Go back
+            >\s""");
+
+        return new StorePage(switch (readInt().orElse(-1)) {
+            case 1 -> this::showCheckOut;
+            case 2 -> () -> showRemoveItem(arr);
+            case 3 -> this::showHomePage;
+            default -> {
+                System.out.println("Sorry, I don't understand.");
+                yield this::showCart;
+            }
+        });
+    }
+
+    private StorePage showRemoveItem(List<? extends Entry<Product, MutableInt>> entries) {
+        System.out.println("""
+            Which item to remove?
+            >\s""");
+        int choice = readInt().orElse(-1);
+        if ((choice < 1) || (choice > entries.size())) System.out.println("Sorry, I don't understand.");
+        else {
+            MutableInt count = entries.get(choice - 1).getValue();
+            count.decrement();
+            if (count.intValue() == 0)
+                entries.remove(choice - 1);
+        }
+        return new StorePage(this::showCart);
+    }
+
+    private StorePage showCheckOut() {
         throw new RuntimeException();
     }
 
