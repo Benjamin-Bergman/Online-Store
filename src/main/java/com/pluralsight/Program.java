@@ -7,10 +7,11 @@ import java.util.*;
 import java.util.function.*;
 
 final class Program implements AutoCloseable {
+    private static final int MAX_PRODUCTS_PER_PAGE = 5;
     private final Collection<Product> products;
     private final Map<Product, MutableInt> shoppingCart;
     private final Scanner scanner;
-    private final Collection<ProductFilter> filter;
+    private final List<ProductFilter> filter;
     private ProductSorter sorter;
 
     private Program(Collection<Product> products) {
@@ -96,19 +97,20 @@ final class Program implements AutoCloseable {
 
     @SuppressWarnings({"ReassignedVariable", "FeatureEnvy"})
     private StorePage showProducts() {
+
         var searched = products
             .stream()
             .filter(product -> filter.stream().allMatch(pred -> pred.test(product)))
             .sorted(sorter)
-            .limit(5)
             .toArray(Product[]::new);
 
         System.out.printf(
-            "There are %d products available. Showing %d based on your filters.%n",
+            "There are %d products available. Showing %s%d based on your filters.%n",
             products.size(),
+            (searched.length > MAX_PRODUCTS_PER_PAGE) ? (MAX_PRODUCTS_PER_PAGE + "/") : "",
             searched.length);
 
-        for (int i = 0; i < searched.length; i++) {
+        for (int i = 0; i < Math.min(searched.length, MAX_PRODUCTS_PER_PAGE); i++) {
             var product = searched[i];
             System.out.printf("%d\t%s\t%s\t$%.2f%n", i + 1, product.department(), product.productName(), product.price());
         }
@@ -150,7 +152,7 @@ final class Program implements AutoCloseable {
 
     private void printCartStatus(boolean updated) {
         int total = shoppingCart.values().stream().map(MutableInt::intValue).reduce(0, Integer::sum);
-        System.out.printf("There %s%s %d item%s in your cart.",
+        System.out.printf("There %s%s %d item%s in your cart.%n",
             (total == 1) ? "is" : "are",
             updated ? " now" : "",
             total,
@@ -184,8 +186,22 @@ final class Program implements AutoCloseable {
         });
     }
 
+    @SuppressWarnings("ReassignedVariable")
     private StorePage showRemoveFilters() {
-        throw new RuntimeException();
+        if (filter.isEmpty()) {
+            System.out.println("There's nothing to remove!");
+            return new StorePage(this::showChangeSearchOptions);
+        }
+        System.out.println("Which filter would you like to remove?");
+        var array = filter.toArray(ProductFilter[]::new);
+        for (int i = 0; i < array.length; i++) System.out.printf("%d - %s%n", i + 1, array[i].description());
+        System.out.print("> ");
+        int i = readInt().orElse(-1);
+        if ((i < 1) || (i > array.length))
+            System.out.println("Sorry, I don't understand.");
+        else
+            filter.remove(i - 1);
+        return new StorePage(this::showChangeSearchOptions);
     }
 
     private StorePage showAddFilters() {
@@ -216,7 +232,7 @@ final class Program implements AutoCloseable {
             >\s""");
         var search = scanner.next();
         filter.add(new ProductFilter(p -> p.productName().toLowerCase().contains(search.toLowerCase()), "Contains \"%s\"".formatted(search.toLowerCase())));
-        return new StorePage(this::showChangeSearchOptions);
+        return new StorePage(this::showAddFilters);
     }
 
     @SuppressWarnings("ReassignedVariable")
@@ -233,7 +249,7 @@ final class Program implements AutoCloseable {
         }
         var dep = deps[choice - 1];
         filter.add(new ProductFilter(p -> p.department().equals(dep), "In " + dep));
-        return new StorePage(this::showChangeSearchOptions);
+        return new StorePage(this::showAddFilters);
     }
 
     private StorePage showPriceFilter(boolean isMax) {
@@ -252,7 +268,7 @@ final class Program implements AutoCloseable {
             filter.add(new ProductFilter(p -> p.price() < limit, "Price < " + limit));
         else
             filter.add(new ProductFilter(p -> p.price() > limit, "Price > " + limit));
-        return new StorePage(this::showChangeSearchOptions);
+        return new StorePage(this::showAddFilters);
     }
 
     private StorePage showChangeSortingMode() {
