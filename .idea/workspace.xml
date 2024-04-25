@@ -23,6 +23,9 @@
   <component name="OptimizeOnSaveOptions">
     <option name="myRunOnSave" value="true" />
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 1
 }]]></component>
@@ -72,7 +75,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1712861896002</updated>
-      <workItem from="1714065416831" duration="1578000" />
+      <workItem from="1714065416831" duration="2928000" />
     </task>
     <servers />
   </component>
