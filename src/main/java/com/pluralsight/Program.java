@@ -79,9 +79,9 @@ final class Program implements AutoCloseable {
     private StorePage showHomePage() {
         System.out.print("""
             Choose an option:
-             1 - Browse Products
-             2 - View Cart
-             3 - Exit
+            1 - Browse Products
+            2 - View Cart
+            3 - Exit
             >\s""");
 
         return switch (readInt().orElse(0)) {
@@ -239,7 +239,7 @@ final class Program implements AutoCloseable {
     @SuppressWarnings("ReassignedVariable")
     private StorePage showDepartmentFilter() {
         System.out.println("Which department are you looking at?");
-        var deps = products.stream().map(Product::department).toArray(String[]::new);
+        var deps = products.stream().map(Product::department).distinct().toArray(String[]::new);
         for (int i = 0; i < deps.length; i++)
             System.out.printf("%d - %s%n", i + 1, deps[i]);
         System.out.print("> ");
