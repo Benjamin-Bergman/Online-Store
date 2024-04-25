@@ -351,6 +351,10 @@ final class Program implements AutoCloseable {
 
     @SuppressWarnings("FeatureEnvy")
     private StorePage showCheckOut() {
+        if (shoppingCart.isEmpty()) {
+            System.out.println("Your shopping cart is empty!");
+            return new StorePage(this::showCart);
+        }
         double totalPrice = shoppingCart.entrySet().stream().map(e -> e.getValue().intValue() * e.getKey().price()).reduce(0.0, Double::sum);
         System.out.printf("""
             Your total will be %.2f.
@@ -375,15 +379,45 @@ final class Program implements AutoCloseable {
                 %s
                 TOTAL: $%.2f
                 PAID: $%.2f
-                CHANGE: %.2f%n""",
+                CHANGE: $%.2f%n""",
             LocalDateTime.now(),
             shoppingCart.entrySet().stream().map(e -> "%6.2f %dx %s %s".formatted(e.getKey().price(), e.getValue().intValue(), e.getKey().productId(), e.getKey().productName())).collect(Collectors.joining(System.lineSeparator())),
             totalPrice,
             cash,
             cash - totalPrice);
+
+        saveReceipt(totalPrice);
+
         System.out.println("Thank you for shopping with us!");
         shoppingCart.clear();
         return new StorePage(this::showHomePage);
+    }
+
+    private void saveReceipt(double totalPrice) {
+        var directory = new File("Receipts");
+        if (!directory.exists() && !directory.mkdir()) {
+            System.out.println("Error: Couldn't create a receipts folder!");
+            return;
+        }
+        if (!directory.isDirectory()) {
+            System.out.println("Error: receipts folder is not a folder!");
+            return;
+        }
+
+        try (FileWriter fw = new FileWriter("Receipts%s%tY%<tm%<td%<tH%<tM%<tS.txt".formatted(File.separatorChar, LocalDateTime.now()));
+             BufferedWriter writer = new BufferedWriter(fw)) {
+            writer.write("SALE OF $%.2f:%n".formatted(totalPrice));
+            StringBuilder buffer = new StringBuilder();
+            for (var entry : shoppingCart.entrySet())
+                buffer
+                    .append(entry.getKey().productId())
+                    .append(' ')
+                    .append(entry.getValue().intValue())
+                    .append(System.lineSeparator());
+            writer.write(buffer.toString());
+        } catch (IOException e) {
+            System.out.println("There was an error saving your order: " + e.getMessage());
+        }
     }
 
     private record ProductSorter(boolean isDefault, Comparator<Product> comparator,
