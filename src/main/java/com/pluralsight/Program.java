@@ -101,7 +101,6 @@ final class Program implements AutoCloseable {
 
     @SuppressWarnings({"ReassignedVariable", "FeatureEnvy"})
     private StorePage showProducts() {
-
         var searched = products
             .stream()
             .filter(product -> filter.stream().allMatch(pred -> pred.test(product)))
