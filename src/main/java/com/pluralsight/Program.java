@@ -10,11 +10,15 @@ final class Program implements AutoCloseable {
     private final Collection<Product> products;
     private final Map<Product, MutableInt> shoppingCart;
     private final Scanner scanner;
+    private final Collection<ProductFilter> filter;
+    private ProductSorter sorter;
 
     private Program(Collection<Product> products) {
         this.products = products;
         shoppingCart = new HashMap<>();
         scanner = new Scanner(System.in);
+        sorter = ProductSorter.noSort();
+        filter = new ArrayList<>();
     }
 
     public static void main(String[] args) {
@@ -80,7 +84,7 @@ final class Program implements AutoCloseable {
             >\s""");
 
         return switch (readInt().orElse(0)) {
-            case 1 -> new StorePage(() -> showProducts(ProductSorter.noSort(), new ArrayList<>()));
+            case 1 -> new StorePage(this::showProducts);
             case 2 -> new StorePage(this::showCart);
             case 3 -> new StorePage();
             default -> {
@@ -91,11 +95,11 @@ final class Program implements AutoCloseable {
     }
 
     @SuppressWarnings({"ReassignedVariable", "FeatureEnvy"})
-    private StorePage showProducts(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showProducts() {
         var searched = products
             .stream()
             .filter(product -> filter.stream().allMatch(pred -> pred.test(product)))
-            .sorted(sort)
+            .sorted(sorter)
             .limit(5)
             .toArray(Product[]::new);
 
@@ -116,32 +120,32 @@ final class Program implements AutoCloseable {
             3 - Go Back
             >\s""");
         return new StorePage(() -> switch (readInt().orElse(0)) {
-            case 1 -> showChangeSearchOptions(sort, filter);
-            case 2 -> showAddToCart(searched, sort, filter);
+            case 1 -> showChangeSearchOptions();
+            case 2 -> showAddToCart(searched);
             case 3 -> showHomePage();
             default -> {
                 System.out.println("Sorry, I don't understand.");
-                yield showProducts(sort, filter);
+                yield showProducts();
             }
         });
     }
 
-    private StorePage showAddToCart(Product[] searched, ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showAddToCart(Product[] searched) {
         if (searched.length == 0) {
             System.out.println("There's nothing to add to cart!");
-            return new StorePage(() -> showProducts(sort, filter));
+            return new StorePage(this::showProducts);
         }
         System.out.printf("Which product would you like to add to cart?%n> ");
         int choice = readInt().orElse(-1);
         if ((choice < 1) || (choice > searched.length)) {
             System.out.println("Sorry, I don't understand.");
-            return new StorePage(() -> showProducts(sort, filter));
+            return new StorePage(this::showProducts);
         }
         shoppingCart
             .computeIfAbsent(searched[choice - 1], x -> new MutableInt(0))
             .increment();
         printCartStatus(true);
-        return new StorePage(() -> showProducts(sort, filter));
+        return new StorePage(this::showProducts);
     }
 
     private void printCartStatus(boolean updated) {
@@ -154,7 +158,7 @@ final class Program implements AutoCloseable {
         );
     }
 
-    private StorePage showChangeSearchOptions(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showChangeSearchOptions() {
         System.out.printf("""
                 %s
                 You have %d filter%s applied.
@@ -164,27 +168,27 @@ final class Program implements AutoCloseable {
                 3 - Remove filter
                 4 - Go Back
                 >\s""",
-            sort.isDefault() ? "There is no sort applied." : ("You are sorting by " + sort + '.'),
+            sorter.isDefault() ? "There is no sort applied." : ("You are sorting by " + sorter + '.'),
             filter.size(),
             (filter.size() == 1) ? "" : "s"
         );
         return new StorePage(() -> switch (readInt().orElse(-1)) {
-            case 1 -> showChangeSortingMode(sort, filter);
-            case 2 -> showAddFilters(sort, filter);
-            case 3 -> showRemoveFilters(sort, filter);
-            case 4 -> showProducts(sort, filter);
+            case 1 -> showChangeSortingMode();
+            case 2 -> showAddFilters();
+            case 3 -> showRemoveFilters();
+            case 4 -> showProducts();
             default -> {
                 System.out.println("Sorry, I don't understand.");
-                yield showChangeSearchOptions(sort, filter);
+                yield showChangeSearchOptions();
             }
         });
     }
 
-    private StorePage showRemoveFilters(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showRemoveFilters() {
         throw new RuntimeException();
     }
 
-    private StorePage showAddFilters(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showAddFilters() {
         System.out.print("""
             Filter by what?
             1 - Price (Maximum)
@@ -194,29 +198,29 @@ final class Program implements AutoCloseable {
             5 - Go Back
             >\s""");
         return switch (readInt().orElse(-1)) {
-            case 1 -> new StorePage(() -> showPriceFilter(sort, filter, true));
-            case 2 -> new StorePage(() -> showPriceFilter(sort, filter, false));
-            case 3 -> new StorePage(() -> showDepartmentFilter(sort, filter));
-            case 4 -> new StorePage(() -> showNameFilter(sort, filter));
-            case 5 -> new StorePage(() -> showChangeSearchOptions(sort, filter));
+            case 1 -> new StorePage(() -> showPriceFilter(true));
+            case 2 -> new StorePage(() -> showPriceFilter(false));
+            case 3 -> new StorePage(this::showDepartmentFilter);
+            case 4 -> new StorePage(this::showNameFilter);
+            case 5 -> new StorePage(this::showChangeSearchOptions);
             default -> {
                 System.out.println("Sorry, I don't understand.");
-                yield new StorePage(() -> showAddFilters(sort, filter));
+                yield new StorePage(this::showAddFilters);
             }
         };
     }
 
-    private StorePage showNameFilter(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showNameFilter() {
         System.out.print("""
             What are you looking for?
             >\s""");
         var search = scanner.next();
         filter.add(new ProductFilter(p -> p.productName().toLowerCase().contains(search.toLowerCase()), "Contains \"%s\"".formatted(search.toLowerCase())));
-        return new StorePage(() -> showChangeSearchOptions(sort, filter));
+        return new StorePage(this::showChangeSearchOptions);
     }
 
     @SuppressWarnings("ReassignedVariable")
-    private StorePage showDepartmentFilter(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showDepartmentFilter() {
         System.out.println("Which department are you looking at?");
         var deps = products.stream().map(Product::department).toArray(String[]::new);
         for (int i = 0; i < deps.length; i++)
@@ -225,14 +229,14 @@ final class Program implements AutoCloseable {
         int choice = readInt().orElse(-1);
         if ((choice < 1) || (choice > deps.length)) {
             System.out.println("Sorry, I don't understand.");
-            return new StorePage(() -> showDepartmentFilter(sort, filter));
+            return new StorePage(this::showDepartmentFilter);
         }
         var dep = deps[choice - 1];
         filter.add(new ProductFilter(p -> p.department().equals(dep), "In " + dep));
-        return new StorePage(() -> showChangeSearchOptions(sort, filter));
+        return new StorePage(this::showChangeSearchOptions);
     }
 
-    private StorePage showPriceFilter(ProductSorter sort, Collection<ProductFilter> filter, boolean isMax) {
+    private StorePage showPriceFilter(boolean isMax) {
         System.out.printf("""
             What's the %s price?
             >\s""", isMax ? "maximum" : "minimum");
@@ -242,16 +246,16 @@ final class Program implements AutoCloseable {
             limit = Double.parseDouble(command);
         } catch (NumberFormatException e) {
             System.out.println("Sorry, I don't understand.");
-            return new StorePage(() -> showPriceFilter(sort, filter, isMax));
+            return new StorePage(() -> showPriceFilter(isMax));
         }
         if (isMax)
             filter.add(new ProductFilter(p -> p.price() < limit, "Price < " + limit));
         else
             filter.add(new ProductFilter(p -> p.price() > limit, "Price > " + limit));
-        return new StorePage(() -> showChangeSearchOptions(sort, filter));
+        return new StorePage(this::showChangeSearchOptions);
     }
 
-    private StorePage showChangeSortingMode(ProductSorter sort, Collection<ProductFilter> filter) {
+    private StorePage showChangeSortingMode() {
         System.out.print("""
             1 - Reset sort
             2 - Sort by name
@@ -260,17 +264,18 @@ final class Program implements AutoCloseable {
             5 - Go back
             >\s""");
         int command = readInt().orElse(-1);
-        if (command == 5) return new StorePage(() -> showChangeSearchOptions(sort, filter));
-        return new StorePage(() -> showChangeSortingMode(switch (command) {
+        if (command == 5) return new StorePage(this::showChangeSearchOptions);
+        sorter = switch (command) {
             case 1 -> ProductSorter.noSort();
-            case 2 -> sort.thenComparing(Comparator.comparing(Product::productName), "Name");
-            case 3 -> sort.thenComparing(Comparator.comparing(Product::price), "Price");
-            case 4 -> sort.thenComparing(Comparator.comparing(Product::department), "Department");
+            case 2 -> sorter.thenComparing(Comparator.comparing(Product::productName), "Name");
+            case 3 -> sorter.thenComparing(Comparator.comparing(Product::price), "Price");
+            case 4 -> sorter.thenComparing(Comparator.comparing(Product::department), "Department");
             default -> {
                 System.out.println("Sorry, I don't understand.");
-                yield sort;
+                yield sorter;
             }
-        }, filter));
+        };
+        return new StorePage(this::showChangeSortingMode);
     }
 
     private StorePage showCart() {
@@ -290,13 +295,13 @@ final class Program implements AutoCloseable {
             return comparator.compare(o1, o2);
         }
 
-        public ProductSorter thenComparing(Comparator<? super Product> other, String newDescription) {
-            return new ProductSorter(false, comparator.thenComparing(other), isDefault ? newDescription : (description + ", then by " + newDescription));
-        }
-
         @Override
         public String toString() {
             return description;
+        }
+
+        ProductSorter thenComparing(Comparator<? super Product> other, String newDescription) {
+            return new ProductSorter(false, comparator.thenComparing(other), isDefault ? newDescription : (description + ", then by " + newDescription));
         }
     }
 
