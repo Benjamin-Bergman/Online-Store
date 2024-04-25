@@ -9,6 +9,7 @@ import java.util.Map.*;
 import java.util.function.*;
 import java.util.stream.*;
 
+@SuppressWarnings("ClassWithTooManyMethods")
 final class Program implements AutoCloseable {
     private static final int MAX_PRODUCTS_PER_PAGE = 5;
     private final Collection<Product> products;
@@ -107,7 +108,7 @@ final class Program implements AutoCloseable {
             .sorted(sorter)
             .toArray(Product[]::new);
 
-        //noinspection HardcodedFileSeparator
+        // noinspection HardcodedFileSeparator
         System.out.printf(
             "There are %d products available. Showing %s%d based on your filters.%n",
             products.size(),
@@ -304,7 +305,7 @@ final class Program implements AutoCloseable {
 
     @SuppressWarnings("ReassignedVariable")
     private StorePage showCart() {
-        System.out.printf("There are %d products in your cart.%n", cartCount());
+        printCartStatus(false);
         var arr = shoppingCart
             .entrySet()
             .stream()
@@ -344,9 +345,11 @@ final class Program implements AutoCloseable {
             if (count.intValue() == 0)
                 entries.remove(choice - 1);
         }
+        printCartStatus(true);
         return new StorePage(this::showCart);
     }
 
+    @SuppressWarnings("FeatureEnvy")
     private StorePage showCheckOut() {
         double totalPrice = shoppingCart.entrySet().stream().map(e -> e.getValue().intValue() * e.getKey().price()).reduce(0.0, Double::sum);
         System.out.printf("""
