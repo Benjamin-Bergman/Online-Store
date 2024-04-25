@@ -7,4 +7,9 @@ record Product(String productId, String productName, double price, String depart
     public int compareTo(Product o) {
         return productId.compareTo(o.productId());
     }
+
+    @Override
+    public String toString() {
+        return productId;
+    }
 }

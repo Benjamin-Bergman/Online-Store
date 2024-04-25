@@ -3,9 +3,11 @@
 package com.pluralsight;
 
 import java.io.*;
+import java.time.*;
 import java.util.*;
 import java.util.Map.*;
 import java.util.function.*;
+import java.util.stream.*;
 
 final class Program implements AutoCloseable {
     private static final int MAX_PRODUCTS_PER_PAGE = 5;
@@ -310,7 +312,7 @@ final class Program implements AutoCloseable {
             .toList();
 
         for (int i = 0; i < arr.size(); i++)
-            System.out.printf("%d - %d* %s%n", i + 1, arr.get(i).getValue().intValue(), arr.get(i).getKey());
+            System.out.printf("%d - %dx %.2f %s%n", i + 1, arr.get(i).getValue().intValue(), arr.get(i).getKey().price(), arr.get(i).getKey().productName());
 
         System.out.println("""
             What would you like to do?
@@ -331,7 +333,7 @@ final class Program implements AutoCloseable {
     }
 
     private StorePage showRemoveItem(List<? extends Entry<Product, MutableInt>> entries) {
-        System.out.println("""
+        System.out.print("""
             Which item to remove?
             >\s""");
         int choice = readInt().orElse(-1);
@@ -346,7 +348,39 @@ final class Program implements AutoCloseable {
     }
 
     private StorePage showCheckOut() {
-        throw new RuntimeException();
+        double totalPrice = shoppingCart.entrySet().stream().map(e -> e.getValue().intValue() * e.getKey().price()).reduce(0.0, Double::sum);
+        System.out.printf("""
+            Your total will be %.2f.
+            How much cash do you have?
+            >\s""", totalPrice);
+        var input = scanner.next();
+        double cash;
+        try {
+            cash = Double.parseDouble(input);
+        } catch (NumberFormatException e) {
+            System.out.println("Sorry, I don't understand.");
+            return new StorePage(this::showCart);
+        }
+        if (cash < totalPrice) {
+            System.out.println("You don't have enough money!");
+            return new StorePage(this::showCart);
+        }
+        System.out.printf("Your change is %.2f.%n", cash - totalPrice);
+        System.out.printf("""
+                RECEIPT:
+                %Ta %<Tb %<Td, %<TY @ %<TI:%<TM %<Tp
+                %s
+                TOTAL: $%.2f
+                PAID: $%.2f
+                CHANGE: %.2f%n""",
+            LocalDateTime.now(),
+            shoppingCart.entrySet().stream().map(e -> "%6.2f %dx %s %s".formatted(e.getKey().price(), e.getValue().intValue(), e.getKey().productId(), e.getKey().productName())).collect(Collectors.joining(System.lineSeparator())),
+            totalPrice,
+            cash,
+            cash - totalPrice);
+        System.out.println("Thank you for shopping with us!");
+        shoppingCart.clear();
+        return new StorePage(this::showHomePage);
     }
 
     private record ProductSorter(boolean isDefault, Comparator<Product> comparator,
